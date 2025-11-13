@@ -7,6 +7,7 @@ use std::time::Duration;
 use indicatif::{ProgressBar, ProgressStyle};
 use comfy_table::{Table, presets::UTF8_FULL, Cell};
 use colored::*;
+use crate::ui::{Colors, spinner_template, spinner_frames, AsciiArtSelector, Dividers};
 
 use crate::config::SOCIAL_PLATFORMS;
 use crate::utils::{validate_instagram_username, validate_youtube_username, validate_tiktok_username};
@@ -19,18 +20,29 @@ pub async fn check_social_media(username: &str, debug: bool) -> Result<()> {
         .redirect(reqwest::redirect::Policy::limited(5))
         .build()?;
 
+    // Create ASCII art for this section
+    let art = AsciiArtSelector::new();
+    
+    // Section header with decorative text
+    println!("{}", art.section);
+    println!("{}", Colors::section(&format!("  {}", Dividers::decorate_text("social"))));
+    println!("{}", art.section);
+
     let pb = ProgressBar::new(SOCIAL_PLATFORMS.len() as u64);
+    let frames = spinner_frames();
+    let frame_refs: Vec<&str> = frames.iter().map(|s| s.as_str()).collect();
     pb.set_style(
-        ProgressStyle::default_spinner()
-            .template("{spinner:.magenta} Checking social platforms... {pos}/{len}")
+        ProgressStyle::with_template(&spinner_template())
             .unwrap()
-            .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]),
+            .tick_strings(&frame_refs),
     );
-    pb.enable_steady_tick(Duration::from_millis(100));
+    pb.set_message("scanning".to_string());
+    pb.enable_steady_tick(Duration::from_millis(150));
 
     let mut table = Table::new();
     table.load_preset(UTF8_FULL);
-    table.set_header(vec!["Platform", "Status"]);
+    table.set_header(vec!["platform", "status"]);
+    table.set_content_arrangement(comfy_table::ContentArrangement::Dynamic);
 
     let pb_clone = pb.clone();
     let futures = SOCIAL_PLATFORMS.iter().map(|platform| {
@@ -43,9 +55,9 @@ pub async fn check_social_media(username: &str, debug: bool) -> Result<()> {
         async move {
             // Validate username format first
             let validation_result = match platform_name {
-                "Instagram" => validate_instagram_username(&username),
-                "YouTube" => validate_youtube_username(&username),
-                "TikTok" => validate_tiktok_username(&username),
+                "instagram" => validate_instagram_username(&username),
+                "youtube" => validate_youtube_username(&username),
+                "tiktok" => validate_tiktok_username(&username),
                 _ => Ok(()), // Unknown platform, skip validation
             };
             
@@ -56,7 +68,7 @@ pub async fn check_social_media(username: &str, debug: bool) -> Result<()> {
                 }
                 Err(_) => {
                     // Username is invalid, return error immediately
-                    Err(anyhow::anyhow!("Invalid username format"))
+                    Err(anyhow::anyhow!("invalid username format"))
                 }
             };
             
@@ -72,25 +84,25 @@ pub async fn check_social_media(username: &str, debug: bool) -> Result<()> {
         match result {
             Ok(is_taken) => {
                 let status_cell = if is_taken {
-                    Cell::new("✗ TAKEN").fg(comfy_table::Color::Red)
+                    Cell::new("taken").fg(comfy_table::Color::White)
                 } else {
-                    Cell::new("✓ AVAILABLE").fg(comfy_table::Color::Green)
+                    Cell::new("available").fg(comfy_table::Color::Green)
                 };
                 table.add_row(vec![Cell::new(platform_name), status_cell]);
             }
             Err(e) => {
                 // Check if it's a validation error or network error
                 let error_msg = e.to_string();
-                let status = if error_msg.contains("Invalid username format") {
-                    "✗ INVALID FORMAT"
+                let status = if error_msg.contains("invalid username format") {
+                    "invalid"
                 } else {
-                    "? CAN'T CHECK"
+                    "unknown"
                 };
                 
-                let status_cell = if status == "✗ INVALID FORMAT" {
-                    Cell::new(status).fg(comfy_table::Color::Red)
+                let status_cell = if status == "invalid" {
+                    Cell::new(status).fg(comfy_table::Color::White)
                 } else {
-                    Cell::new(status).fg(comfy_table::Color::Yellow)
+                    Cell::new(status).fg(comfy_table::Color::Grey)
                 };
                 
                 table.add_row(vec![
@@ -101,7 +113,13 @@ pub async fn check_social_media(username: &str, debug: bool) -> Result<()> {
         }
     }
 
+    println!();
+    
+    // Decorative box around table
+    let (box_top, _, _, box_bottom, _) = Dividers::box_pattern();
+    println!("{}", box_top);
     println!("{}", table);
+    println!("{}", box_bottom);
 
     Ok(())
 }
@@ -137,7 +155,7 @@ async fn check_social_platform(client: &Client, url: &str, platform: &str, debug
         let body = response.text().await?;
         let body_lower = body.to_lowercase();
         
-        if debug && platform == "Instagram" {
+        if debug && platform == "instagram" {
             print_instagram_debug(&body, &body_lower, url);
         }
         

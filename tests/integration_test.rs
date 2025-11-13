@@ -51,6 +51,21 @@ const INVALID_USERNAMES: &[(&str, &[&str])] = &[
     ("user&name", &["YouTube", "Instagram", "TikTok"]), // Invalid char (&) for all platforms
     ("user*name", &["YouTube", "Instagram", "TikTok"]), // Invalid char (*) for all platforms
     ("user+name", &["YouTube", "Instagram", "TikTok"]), // Invalid char (+) for all platforms
+    // Edge cases: Empty and boundary lengths
+    ("", &["YouTube", "Instagram", "TikTok"]), // Empty string (invalid for all)
+    ("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", &["YouTube", "Instagram", "TikTok"]), // Too long for all (31 chars > 30/20/24)
+    ("aaaaaaaaaaaaaaaaaaaaa", &["YouTube"]), // Too long for YouTube (21 chars > 20), but valid for Instagram/TikTok
+    ("aaaaaaaaaaaaaaaaaaaaaaaaa", &["YouTube", "TikTok"]), // Too long for TikTok (25 chars > 24), and YouTube (25 > 20), but valid for Instagram
+    // Edge cases: Unicode and special characters
+    // Note: Current validation uses is_alphanumeric() which accepts Unicode letters like "ñ"
+    // This might be a limitation - platforms may not actually allow Unicode
+    ("user🚀name", &["YouTube", "Instagram", "TikTok"]), // Emoji (invalid for all)
+    ("user\tname", &["YouTube", "Instagram", "TikTok"]), // Tab character (invalid for all)
+    ("user\nname", &["YouTube", "Instagram", "TikTok"]), // Newline (invalid for all)
+    // Edge cases: Boundary valid usernames (should be valid)
+    ("abc", &[]), // Exactly 3 chars (minimum for YouTube, valid)
+    ("a", &["YouTube"]), // Exactly 1 char (valid for Instagram/TikTok, but invalid for YouTube - min 3)
+    ("ab", &["YouTube"]), // Exactly 2 chars (valid for Instagram/TikTok, but invalid for YouTube - min 3)
 ];
 
 #[tokio::test]

@@ -8,15 +8,15 @@ pub struct SocialPlatform {
 
 pub const SOCIAL_PLATFORMS: &[SocialPlatform] = &[
     SocialPlatform {
-        name: "YouTube",
+        name: "youtube",
         url_template: "https://www.youtube.com/@{}",
     },
     SocialPlatform {
-        name: "Instagram",
+        name: "instagram",
         url_template: "https://www.instagram.com/{}",
     },
     SocialPlatform {
-        name: "TikTok",
+        name: "tiktok",
         url_template: "https://www.tiktok.com/@{}",
     },
 ];

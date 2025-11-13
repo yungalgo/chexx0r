@@ -4,6 +4,7 @@ pub mod config;
 pub mod domain;
 pub mod social;
 pub mod utils;
+pub mod ui;
 
 // Re-export commonly used functions for easier testing
 pub use utils::{

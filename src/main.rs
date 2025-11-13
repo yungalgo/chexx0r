@@ -4,10 +4,11 @@ mod config;
 mod domain;
 mod social;
 mod utils;
+mod ui;
 
 use clap::Parser;
-use colored::*;
 use anyhow::Result;
+use ui::{Dividers, AsciiArtSelector};
 
 #[derive(Parser, Debug)]
 #[command(name = "chexx0r")]
@@ -44,28 +45,56 @@ struct Args {
 async fn main() -> Result<()> {
     let args = Args::parse();
 
-    println!("\n{}", format!("🔍 Checking availability for: {}", args.username).bold());
-    println!("{}", "=".repeat(60));
+    // Create ASCII art selector for this run
+    let art = AsciiArtSelector::new();
+    
+    // Ethereal header with prominent ASCII art
+    println!();
+    println!("{}", art.header);
+    println!();
+    
+    // Use random stylized box pattern from gist
+    let (box_top, left_char, right_char, box_bottom, box_width) = Dividers::box_pattern();
+    
+    let username_display = format!("checking: {}", args.username);
+    let content_width = username_display.chars().count();
+    
+    // Calculate padding to center content
+    let total_padding = box_width.saturating_sub(content_width + 2); // +2 for left/right chars
+    let left_padding = total_padding / 2;
+    let right_padding = total_padding - left_padding;
+    
+    println!("{}", box_top);
+    println!("{}{}{}{}", 
+        left_char,
+        " ".repeat(left_padding),
+        username_display,
+        " ".repeat(right_padding) + &right_char.to_string());
+    println!("{}", box_bottom);
+    println!();
+    println!("{}", art.section);
+    println!();
 
     // Domain checks
     if !args.skip_domains {
-        println!("\n{}", "📡 DOMAIN AVAILABILITY".bold().blue());
-        
-        match domain::check_domains(&args.username, &args.preset, args.tlds.as_deref()).await {
-            Ok(_) => {},
-            Err(e) => eprintln!("{}", format!("Domain check error: {}", e).red()),
-        }
+        domain::check_domains(&args.username, &args.preset, args.tlds.as_deref()).await?;
     }
 
     // Social media checks
     if !args.skip_social {
-        println!("\n{}", "📱 SOCIAL MEDIA AVAILABILITY".bold().magenta());
-        
         social::check_social_media(&args.username, args.debug).await?;
     }
 
-    println!("\n{}", "=".repeat(60));
-    println!("{}", "✅ Check complete!\n".bold().green());
+    // Complete section with stylized box
+    println!();
+    let (complete_top, complete_left, complete_right, complete_bottom, _) = Dividers::box_pattern();
+    let complete_text = Dividers::decorate_text("complete");
+    println!("{}", complete_top);
+    println!("{}{}{}", complete_left, complete_text, complete_right);
+    println!("{}", complete_bottom);
+    println!();
+    println!("{}", art.header);
+    println!();
 
     Ok(())
 }
