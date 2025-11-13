@@ -116,12 +116,23 @@ async fn check_social_platform(client: &Client, url: &str, platform: &str, debug
 
     let status = response.status();
     
-    // YouTube returns 404 for non-existent profiles
+    // YouTube: Returns 404 for non-existent profiles, 200 for existing ones
+    if url.contains("youtube.com") {
+        if status.as_u16() == 404 {
+            return Ok(false); // Available - channel doesn't exist
+        } else if status.is_success() {
+            return Ok(true); // Taken - channel exists
+        } else {
+            // Other status codes - can't determine
+            return Err(anyhow::anyhow!("HTTP {}", status.as_u16()));
+        }
+    }
+    
+    // Instagram and TikTok return 200 but show specific error messages
     if status.as_u16() == 404 {
         return Ok(false); // Available
     }
     
-    // Instagram and TikTok return 200 but show specific error messages
     if status.is_success() {
         let body = response.text().await?;
         let body_lower = body.to_lowercase();
@@ -232,14 +243,35 @@ fn check_instagram_availability(body_lower: &str, url: &str) -> Result<bool> {
 
 /// Check TikTok profile availability based on HTML content
 fn check_tiktok_availability(body_lower: &str) -> Result<bool> {
-    // TikTok: Existing profiles have "uniqueId" in embedded JSON
-    // Non-existent profiles don't have this field
-    // If uniqueId is present, profile exists (taken)
-    // If not present, profile doesn't exist (available)
-    if body_lower.contains("\"uniqueid\":\"") {
-        Ok(true) // Taken
+    // TikTok: Both real and fake profiles return HTTP 200
+    // Real profiles have:
+    //   - "uniqueId":"username" in embedded JSON
+    //   - "statusCode":0
+    // Non-existent profiles have:
+    //   - "statusCode":10221 (or other non-zero codes)
+    //   - "statusMsg":"user banned" or similar error messages
+    //   - No uniqueId field
+    
+    // Check for positive indicators first
+    let has_unique_id = body_lower.contains("\"uniqueid\":\"");
+    let has_status_code_zero = body_lower.contains("\"statuscode\":0");
+    
+    // Check for negative indicators
+    let has_error_status_code = body_lower.contains("\"statuscode\":10221") ||
+                                body_lower.contains("\"statuscode\":10222") ||
+                                body_lower.contains("\"statusmsg\":\"user banned\"") ||
+                                body_lower.contains("\"statusmsg\":\"user not found\"");
+    
+    if has_unique_id && has_status_code_zero {
+        Ok(true) // Taken - profile exists
+    } else if has_error_status_code {
+        Ok(false) // Available - explicit error status
+    } else if has_unique_id {
+        // Has uniqueId but no statusCode check - assume taken (fallback)
+        Ok(true)
     } else {
-        Ok(false) // Available
+        // No uniqueId and no error status - assume available
+        Ok(false)
     }
 }
 
