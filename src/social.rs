@@ -206,7 +206,8 @@ fn check_platform_availability(body_lower: &str, url: &str) -> Result<bool> {
 }
 
 /// Check Instagram profile availability based on HTML content
-fn check_instagram_availability(body_lower: &str, url: &str) -> Result<bool> {
+#[cfg_attr(test, allow(dead_code))]
+pub fn check_instagram_availability(body_lower: &str, url: &str) -> Result<bool> {
     // Extract username from URL
     let username_from_url = url.split('/').last().unwrap_or("");
     
@@ -242,7 +243,8 @@ fn check_instagram_availability(body_lower: &str, url: &str) -> Result<bool> {
 }
 
 /// Check TikTok profile availability based on HTML content
-fn check_tiktok_availability(body_lower: &str) -> Result<bool> {
+#[cfg_attr(test, allow(dead_code))]
+pub fn check_tiktok_availability(body_lower: &str) -> Result<bool> {
     // TikTok: Both real and fake profiles return HTTP 200
     // Real profiles have:
     //   - "uniqueId":"username" in embedded JSON
