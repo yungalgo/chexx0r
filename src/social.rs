@@ -1,56 +1,41 @@
-/// Social media platform availability checking functionality
+/// Social media platform availability checking functionality - pure logic only
 
 use anyhow::{Result, Context};
 use reqwest::Client;
 use futures::future::join_all;
 use std::time::Duration;
-use indicatif::{ProgressBar, ProgressStyle};
-use comfy_table::{Table, presets::UTF8_FULL, Cell};
-use colored::*;
-use crate::ui::{Colors, spinner_template, spinner_frames, AsciiArtSelector, Dividers};
-
+use colored::Colorize;
 use crate::config::SOCIAL_PLATFORMS;
 use crate::utils::{validate_instagram_username, validate_youtube_username, validate_tiktok_username};
 
+/// Social media check result
+pub struct SocialResult {
+    pub platform: String,
+    pub status: SocialStatus,
+}
+
+/// Social media availability status
+pub enum SocialStatus {
+    Available,
+    Taken,
+    Invalid,
+    Unknown,
+}
+
 /// Check social media platform availability for a username
-pub async fn check_social_media(username: &str, debug: bool) -> Result<()> {
+/// Returns a vector of social results - NO UI rendering
+pub async fn check_social_media(username: &str, debug: bool) -> Result<Vec<SocialResult>> {
     let client = Client::builder()
         .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36")
         .timeout(Duration::from_secs(10))
         .redirect(reqwest::redirect::Policy::limited(5))
         .build()?;
 
-    // Create ASCII art for this section
-    let art = AsciiArtSelector::new();
-    
-    // Section header with decorative text
-    println!("{}", art.section);
-    println!("{}", Colors::section(&format!("  {}", Dividers::decorate_text("social"))));
-    println!("{}", art.section);
-
-    let pb = ProgressBar::new(SOCIAL_PLATFORMS.len() as u64);
-    let frames = spinner_frames();
-    let frame_refs: Vec<&str> = frames.iter().map(|s| s.as_str()).collect();
-    pb.set_style(
-        ProgressStyle::with_template(&spinner_template())
-            .unwrap()
-            .tick_strings(&frame_refs),
-    );
-    pb.set_message("scanning".to_string());
-    pb.enable_steady_tick(Duration::from_millis(150));
-
-    let mut table = Table::new();
-    table.load_preset(UTF8_FULL);
-    table.set_header(vec!["platform", "status"]);
-    table.set_content_arrangement(comfy_table::ContentArrangement::Dynamic);
-
-    let pb_clone = pb.clone();
     let futures = SOCIAL_PLATFORMS.iter().map(|platform| {
         let client = client.clone();
         let username = username.to_string();
         let platform_name = platform.name;
         let url = platform.url_template.replace("{}", &username);
-        let pb = pb_clone.clone();
 
         async move {
             // Validate username format first
@@ -72,56 +57,39 @@ pub async fn check_social_media(username: &str, debug: bool) -> Result<()> {
                 }
             };
             
-            pb.inc(1);
             (platform_name, result)
         }
     });
 
     let results = join_all(futures).await;
-    pb.finish_and_clear();
-
+    
+    let mut social_results = Vec::new();
     for (platform_name, result) in results {
-        match result {
+        let status = match result {
             Ok(is_taken) => {
-                let status_cell = if is_taken {
-                    Cell::new("taken").fg(comfy_table::Color::White)
+                if is_taken {
+                    SocialStatus::Taken
                 } else {
-                    Cell::new("available").fg(comfy_table::Color::Green)
-                };
-                table.add_row(vec![Cell::new(platform_name), status_cell]);
+                    SocialStatus::Available
+                }
             }
             Err(e) => {
-                // Check if it's a validation error or network error
                 let error_msg = e.to_string();
-                let status = if error_msg.contains("invalid username format") {
-                    "invalid"
+                if error_msg.contains("invalid username format") {
+                    SocialStatus::Invalid
                 } else {
-                    "unknown"
-                };
-                
-                let status_cell = if status == "invalid" {
-                    Cell::new(status).fg(comfy_table::Color::White)
-                } else {
-                    Cell::new(status).fg(comfy_table::Color::Grey)
-                };
-                
-                table.add_row(vec![
-                    Cell::new(platform_name),
-                    status_cell
-                ]);
+                    SocialStatus::Unknown
+                }
             }
-        }
+        };
+        
+        social_results.push(SocialResult {
+            platform: platform_name.to_string(),
+            status,
+        });
     }
 
-    println!();
-    
-    // Decorative box around table
-    let (box_top, _, _, box_bottom, _) = Dividers::box_pattern();
-    println!("{}", box_top);
-    println!("{}", table);
-    println!("{}", box_bottom);
-
-    Ok(())
+    Ok(social_results)
 }
 
 /// Check a single social media platform for username availability
@@ -294,4 +262,3 @@ pub fn check_tiktok_availability(body_lower: &str) -> Result<bool> {
         Ok(false)
     }
 }
-

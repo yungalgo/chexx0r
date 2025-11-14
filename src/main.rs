@@ -1,4 +1,4 @@
-/// Main entry point for chexx0r CLI tool
+/// Main entry point for chexx0r CLI tool - orchestrates UI and logic
 
 mod config;
 mod domain;
@@ -8,7 +8,10 @@ mod ui;
 
 use clap::Parser;
 use anyhow::Result;
-use ui::{Dividers, AsciiArtSelector};
+use indicatif::{ProgressBar, ProgressStyle};
+use comfy_table::{Table, Cell};
+use std::time::Duration;
+use ui::{Dividers, Colors, render_box, spinner_template, spinner_frames};
 
 #[derive(Parser, Debug)]
 #[command(name = "chexx0r")]
@@ -45,55 +48,143 @@ struct Args {
 async fn main() -> Result<()> {
     let args = Args::parse();
 
-    // Create ASCII art selector for this run
-    let art = AsciiArtSelector::new();
+    // Select a single box pattern for all boxes in this run
+    let box_pattern = Dividers::box_pattern();
     
-    // Ethereal header with prominent ASCII art
-    println!();
-    println!("{}", art.header);
     println!();
     
-    // Use random stylized box pattern from gist
-    let (box_top, left_char, right_char, box_bottom, box_width) = Dividers::box_pattern();
-    
-    let username_display = format!("checking: {}", args.username);
-    let content_width = username_display.chars().count();
-    
-    // Calculate padding to center content
-    let total_padding = box_width.saturating_sub(content_width + 2); // +2 for left/right chars
-    let left_padding = total_padding / 2;
-    let right_padding = total_padding - left_padding;
+    // Show initial checking box
+    let initial_text = format!("checking: {}", args.username);
+    let colored_text = Colors::checking(&initial_text).to_string();
+    let (box_top, left_char, right_char, box_bottom) = Dividers::create_box_with_pattern(&colored_text, Some(box_pattern));
     
     println!("{}", box_top);
+    let box_width = Dividers::strip_ansi_codes(&box_top).chars().count().max(
+        Dividers::strip_ansi_codes(&box_bottom).chars().count()
+    );
+    
+    let content_width = Dividers::strip_ansi_codes(&colored_text).chars().count();
+    let total_padding = box_width.saturating_sub(content_width + 2);
+    let left_padding = total_padding / 2;
+    let right_padding = total_padding - left_padding;
     println!("{}{}{}{}", 
         left_char,
         " ".repeat(left_padding),
-        username_display,
+        colored_text,
         " ".repeat(right_padding) + &right_char.to_string());
     println!("{}", box_bottom);
-    println!();
-    println!("{}", art.section);
-    println!();
-
+    
+    // Create a single spinner that persists across all checks
+    let frames = spinner_frames();
+    let frame_refs: Vec<&str> = frames.iter().map(|s| s.as_str()).collect();
+    let pb = ProgressBar::new(100); // Dummy total, we'll manage it manually
+    pb.set_style(
+        ProgressStyle::with_template(&spinner_template())
+            .unwrap()
+            .tick_strings(&frame_refs),
+    );
+    pb.enable_steady_tick(Duration::from_millis(150));
+    
     // Domain checks
-    if !args.skip_domains {
-        domain::check_domains(&args.username, &args.preset, args.tlds.as_deref()).await?;
-    }
-
+    let domain_results = if !args.skip_domains {
+        pb.set_message("scanning domains".to_string());
+        let results = domain::check_domains(&args.username, &args.preset, args.tlds.as_deref()).await?;
+        Some(results)
+    } else {
+        None
+    };
+    
     // Social media checks
-    if !args.skip_social {
-        social::check_social_media(&args.username, args.debug).await?;
+    let social_results = if !args.skip_social {
+        pb.set_message("scanning socials".to_string());
+        let results = social::check_social_media(&args.username, args.debug).await?;
+        Some(results)
+    } else {
+        None
+    };
+    
+    // Clear checking box and spinner before showing results
+    print!("\x1b[4A\x1b[0J"); // Clear checking box (3 lines) + spinner (1 line)
+    pb.finish_and_clear();
+    
+    // Render domain results
+    if let Some(results) = domain_results {
+        println!();
+        render_box("domains", box_pattern);
+        println!();
+        
+        let mut table = Table::new();
+        table.load_preset(comfy_table::presets::NOTHING);
+        table.set_content_arrangement(comfy_table::ContentArrangement::Dynamic);
+        
+        for result in results {
+            let status_cell = match result.available {
+                Some(true) => Cell::new("available").fg(comfy_table::Color::Green),
+                Some(false) => Cell::new("taken").fg(comfy_table::Color::White),
+                None => Cell::new("unknown").fg(comfy_table::Color::Grey),
+            };
+            table.add_row(vec![Cell::new(result.domain), status_cell]);
+        }
+        
+        // Render table in box
+        let table_str = format!("{}", table);
+        let table_width = table_str.lines()
+            .map(|l| Dividers::strip_ansi_codes(l).chars().count())
+            .max()
+            .unwrap_or(50);
+        let (box_top, box_left, box_right, box_bottom) = Dividers::create_box_with_pattern(&" ".repeat(table_width), Some(box_pattern));
+        println!("{}", box_top);
+        
+        for line in table_str.lines() {
+            let line_width = Dividers::strip_ansi_codes(line).chars().count();
+            let padding = table_width.saturating_sub(line_width);
+            println!("{}{}{}{}", box_left, line, " ".repeat(padding), box_right);
+        }
+        
+        println!("{}", box_bottom);
+    }
+    
+    // Render social results
+    if let Some(results) = social_results {
+        println!();
+        render_box("social", box_pattern);
+        println!();
+        
+        let mut table = Table::new();
+        table.load_preset(comfy_table::presets::NOTHING);
+        table.set_content_arrangement(comfy_table::ContentArrangement::Dynamic);
+        
+        for result in results {
+            let status_cell = match result.status {
+                social::SocialStatus::Available => Cell::new("available").fg(comfy_table::Color::Green),
+                social::SocialStatus::Taken => Cell::new("taken").fg(comfy_table::Color::White),
+                social::SocialStatus::Invalid => Cell::new("invalid").fg(comfy_table::Color::White),
+                social::SocialStatus::Unknown => Cell::new("unknown").fg(comfy_table::Color::Grey),
+            };
+            table.add_row(vec![Cell::new(result.platform), status_cell]);
+        }
+        
+        // Render table in box
+        let table_str = format!("{}", table);
+        let table_width = table_str.lines()
+            .map(|l| Dividers::strip_ansi_codes(l).chars().count())
+            .max()
+            .unwrap_or(50);
+        let (box_top, box_left, box_right, box_bottom) = Dividers::create_box_with_pattern(&" ".repeat(table_width), Some(box_pattern));
+        println!("{}", box_top);
+        
+        for line in table_str.lines() {
+            let line_width = Dividers::strip_ansi_codes(line).chars().count();
+            let padding = table_width.saturating_sub(line_width);
+            println!("{}{}{}{}", box_left, line, " ".repeat(padding), box_right);
+        }
+        
+        println!("{}", box_bottom);
     }
 
-    // Complete section with stylized box
+    // Complete section
     println!();
-    let (complete_top, complete_left, complete_right, complete_bottom, _) = Dividers::box_pattern();
-    let complete_text = Dividers::decorate_text("complete");
-    println!("{}", complete_top);
-    println!("{}{}{}", complete_left, complete_text, complete_right);
-    println!("{}", complete_bottom);
-    println!();
-    println!("{}", art.header);
+    render_box("complete", box_pattern);
     println!();
 
     Ok(())

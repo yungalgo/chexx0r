@@ -8,6 +8,7 @@ pub struct AsciiArtCategories;
 
 impl AsciiArtCategories {
     /// Cute Sparkles category
+    #[allow(dead_code)]
     pub fn cute_sparkles() -> Vec<&'static str> {
         vec![
             "✧･ﾟ: *✧･ﾟ:* 　　 *:･ﾟ✧*:･ﾟ✧",
@@ -36,6 +37,7 @@ impl AsciiArtCategories {
     }
 
     /// Galactic Sparkles category
+    #[allow(dead_code)]
     pub fn galactic_sparkles() -> Vec<&'static str> {
         vec![
             "｡･:*:･ﾟ★,｡･:*:･ﾟ☆　　 ｡･:*:･ﾟ★,｡･:*:･ﾟ☆",
@@ -201,33 +203,23 @@ pub fn colorize_ascii_art(art: &str) -> String {
     result
 }
 
-/// Random ASCII art selector
-pub struct AsciiArtSelector {
-    pub header: String,
-    pub section: String,
-}
-
-impl AsciiArtSelector {
-    /// Create a new selector with random choices from each category
-    pub fn new() -> Self {
-        let mut rng = rand::rng();
-        
-        let header_options = AsciiArtCategories::galactic_sparkles();
-        let section_options = AsciiArtCategories::cute_sparkles();
-
-        let header = header_options.choose(&mut rng)
-            .map(|s| colorize_ascii_art(s))
-            .unwrap_or_else(|| colorize_ascii_art("⋇⋆✦⋆⋇　 ⋇⋆✦⋆⋇"));
-        
-        let section = section_options.choose(&mut rng)
-            .map(|s| colorize_ascii_art(s))
-            .unwrap_or_else(|| colorize_ascii_art("⋆ ˚｡⋆୨୧˚　˚୨୧⋆｡˚ ⋆"));
-
-        Self {
-            header,
-            section,
-        }
-    }
+/// Helper function to render a complete box with content
+pub fn render_box(content: &str, box_pattern: (&'static str, char, char, &'static str)) {
+    let (box_top, left_char, right_char, box_bottom) = Dividers::create_box_with_pattern(content, Some(box_pattern));
+    let box_width = Dividers::strip_ansi_codes(&box_top).chars().count().max(
+        Dividers::strip_ansi_codes(&box_bottom).chars().count()
+    );
+    println!("{}", box_top);
+    let content_width = Dividers::strip_ansi_codes(content).chars().count();
+    let total_padding = box_width.saturating_sub(content_width + 2);
+    let left_padding = total_padding / 2;
+    let right_padding = total_padding - left_padding;
+    println!("{}{}{}{}", 
+        left_char,
+        " ".repeat(left_padding),
+        content,
+        " ".repeat(right_padding) + &right_char.to_string());
+    println!("{}", box_bottom);
 }
 
 /// Elegant text dividers (legacy support)
@@ -235,43 +227,83 @@ pub struct Dividers;
 
 impl Dividers {
     /// Get random box pattern from gist
-    /// Returns (top, left_char, right_char, bottom, width)
-    pub fn box_pattern() -> (String, char, char, String, usize) {
+    /// Returns (top_template, left_char, right_char, bottom_template)
+    pub fn box_pattern() -> (&'static str, char, char, &'static str) {
         let mut rng = rand::rng();
         let boxes = AsciiArtCategories::boxes();
         
-        let (top, left_char, right_char, bottom) = boxes.choose(&mut rng)
+        boxes.choose(&mut rng)
             .copied()
-            .unwrap_or(boxes[0]);
+            .unwrap_or(boxes[0])
+    }
+    
+    /// Strip ANSI escape codes from a string to get true character width
+    pub fn strip_ansi_codes(s: &str) -> String {
+        let mut result = String::new();
+        let mut chars = s.chars().peekable();
+        while let Some(ch) = chars.next() {
+            if ch == '\x1b' {
+                // Skip ANSI escape sequence
+                while let Some(&next) = chars.peek() {
+                    chars.next();
+                    if next == 'm' {
+                        break;
+                    }
+                }
+            } else {
+                result.push(ch);
+            }
+        }
+        result
+    }
+    
+    /// Create a box with a specific pattern (or random if None)
+    pub fn create_box_with_pattern(content: &str, pattern: Option<(&'static str, char, char, &'static str)>) -> (String, char, char, String) {
+        let (top_template, left_char, right_char, bottom_template) = pattern.unwrap_or_else(|| Self::box_pattern());
         
-        // Calculate width from the top line BEFORE colorizing (for accurate width)
-        let width = top.chars().count();
+        // Calculate content width (strip ANSI codes if any)
+        let content_width = Self::strip_ansi_codes(content).chars().count();
+        let min_width = top_template.chars().count().max(20); // Minimum box width
+        let box_width = content_width.max(min_width) + 2; // +2 for left/right chars
+        
+        // Create top and bottom lines by repeating the pattern or using dashes
+        let top = if top_template.contains("─") || top_template.contains("═") || top_template.contains("━") {
+            // Extract corner chars and create dynamic line
+            let first_char = top_template.chars().next().unwrap_or('─');
+            let last_char = top_template.chars().last().unwrap_or('─');
+            let fill_char = if top_template.contains("═") { '═' } else if top_template.contains("━") { '━' } else { '─' };
+            format!("{}{}{}", first_char, fill_char.to_string().repeat(box_width.saturating_sub(2)), last_char)
+        } else {
+            // For decorative boxes, use template but pad if needed
+            top_template.to_string()
+        };
+        
+        let bottom = if bottom_template.contains("─") || bottom_template.contains("═") || bottom_template.contains("━") {
+            let first_char = bottom_template.chars().next().unwrap_or('─');
+            let last_char = bottom_template.chars().last().unwrap_or('─');
+            let fill_char = if bottom_template.contains("═") { '═' } else if bottom_template.contains("━") { '━' } else { '─' };
+            format!("{}{}{}", first_char, fill_char.to_string().repeat(box_width.saturating_sub(2)), last_char)
+        } else {
+            bottom_template.to_string()
+        };
         
         (
-            colorize_ascii_art(top),
+            colorize_ascii_art(&top),
             left_char,
             right_char,
-            colorize_ascii_art(bottom),
-            width,
+            colorize_ascii_art(&bottom),
         )
     }
     
-    /// Wrap text with decorative elements before and after
-    pub fn decorate_text(text: &str) -> String {
-        let mut rng = rand::rng();
-        let decorations = vec!["✦ ✧ ✦", "✧ ✦ ✧", "☆ ★ ☆", "★ ☆ ★", "⋆ ✧ ⋆", "✧ ⋆ ✧"];
-        let decor = decorations.choose(&mut rng).unwrap_or(&"✦ ✧ ✦");
-        format!("{} {} {}", decor, text, decor)
-    }
 }
 
 /// Color helpers for white palette
 pub struct Colors;
 
 impl Colors {
-    /// Section header color (very light gray/white)
-    pub fn section(text: &str) -> ColoredString {
-        text.white()
+    /// Bright checking text (bright white/cyan)
+    pub fn checking(text: &str) -> ColoredString {
+        text.bright_white()
     }
 }
 

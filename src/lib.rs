@@ -6,7 +6,7 @@ pub mod social;
 pub mod utils;
 pub mod ui;
 
-// Re-export commonly used functions for easier testing
+// Re-export commonly used functions and types for easier testing
 pub use utils::{
     validate_instagram_username,
     validate_youtube_username,
@@ -16,5 +16,11 @@ pub use utils::{
 pub use social::{
     check_instagram_availability,
     check_tiktok_availability,
+    SocialResult,
+    SocialStatus,
+};
+
+pub use domain::{
+    DomainResult,
 };
 
