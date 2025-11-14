@@ -2,6 +2,7 @@
 
 use colored::*;
 use rand::prelude::*;
+use std::collections::HashMap;
 
 /// ASCII art categories from the gist
 pub struct AsciiArtCategories;
@@ -133,7 +134,6 @@ impl AsciiArtCategories {
         ]
     }
 
-
     /// Stylized box patterns from the gist - organized as (top, left_char, right_char, bottom)
     pub fn boxes() -> Vec<(&'static str, char, char, &'static str)> {
         vec![
@@ -203,38 +203,15 @@ pub fn colorize_ascii_art(art: &str) -> String {
     result
 }
 
-/// Helper function to render a complete box with content
-pub fn render_box(content: &str, box_pattern: (&'static str, char, char, &'static str)) {
-    let (box_top, left_char, right_char, box_bottom) = Dividers::create_box_with_pattern(content, Some(box_pattern));
-    let box_width = Dividers::strip_ansi_codes(&box_top).chars().count().max(
-        Dividers::strip_ansi_codes(&box_bottom).chars().count()
-    );
-    println!("{}", box_top);
-    let content_width = Dividers::strip_ansi_codes(content).chars().count();
-    let total_padding = box_width.saturating_sub(content_width + 2);
-    let left_padding = total_padding / 2;
-    let right_padding = total_padding - left_padding;
-    println!("{}{}{}{}", 
-        left_char,
-        " ".repeat(left_padding),
-        content,
-        " ".repeat(right_padding) + &right_char.to_string());
-    println!("{}", box_bottom);
-}
-
-/// Elegant text dividers (legacy support)
+/// Elegant text dividers
 pub struct Dividers;
 
 impl Dividers {
     /// Get random box pattern from gist
-    /// Returns (top_template, left_char, right_char, bottom_template)
     pub fn box_pattern() -> (&'static str, char, char, &'static str) {
         let mut rng = rand::rng();
         let boxes = AsciiArtCategories::boxes();
-        
-        boxes.choose(&mut rng)
-            .copied()
-            .unwrap_or(boxes[0])
+        boxes.choose(&mut rng).copied().unwrap_or(boxes[0])
     }
     
     /// Strip ANSI escape codes from a string to get true character width
@@ -243,7 +220,6 @@ impl Dividers {
         let mut chars = s.chars().peekable();
         while let Some(ch) = chars.next() {
             if ch == '\x1b' {
-                // Skip ANSI escape sequence
                 while let Some(&next) = chars.peek() {
                     chars.next();
                     if next == 'm' {
@@ -257,44 +233,199 @@ impl Dividers {
         result
     }
     
+    /// Scale a decorative box pattern to fit a target width
+    /// Preserves decorative elements and centers them when expanding
+    /// Always returns exactly target_width characters
+    fn scale_box_pattern(template: &str, target_width: usize) -> String {
+        let template_chars: Vec<char> = template.chars().collect();
+        if template_chars.len() < 2 {
+            // Can't scale if template is too short, return as-is (but this shouldn't happen in practice)
+            return template.to_string();
+        }
+        
+        let template_width = template_chars.len();
+        if target_width == template_width {
+            return template.to_string();
+        }
+        
+        let first_char = template_chars[0];
+        let last_char = template_chars[template_chars.len() - 1];
+        let middle: Vec<char> = template_chars[1..template_chars.len() - 1].to_vec();
+        
+        if middle.is_empty() {
+            // No middle content, just corners - fill between them
+            let fill_char = if template.contains("═") { '═' } else if template.contains("━") { '━' } else { '─' };
+            let fill_width = target_width.saturating_sub(2);
+            let result = format!("{}{}{}", first_char, fill_char.to_string().repeat(fill_width), last_char);
+            // Verify it's exactly target_width
+            let actual_width = result.chars().count();
+            if actual_width != target_width {
+                // Adjust fill width
+                let adjusted_fill_width = fill_width as i32 + (target_width as i32 - actual_width as i32);
+                if adjusted_fill_width >= 0 {
+                    format!("{}{}{}", first_char, fill_char.to_string().repeat(adjusted_fill_width as usize), last_char)
+                } else {
+                    format!("{}{}", first_char, last_char)
+                }
+            } else {
+                result
+            }
+        } else if target_width < 3 {
+            // Can't have a box smaller than 2 characters (just corners)
+            format!("{}{}", first_char, last_char)
+        } else {
+            let middle_str: String = middle.iter().collect();
+            let middle_width = middle.len();
+            let needed_middle_width = target_width.saturating_sub(2);
+            
+            if target_width < template_width {
+                // Need to trim - try to preserve decorative elements in center
+                // Try to keep center decorative elements
+                let center_start = middle_width / 2;
+                let keep_width = needed_middle_width;
+                let half_keep = keep_width / 2;
+                
+                let start_idx = center_start.saturating_sub(half_keep);
+                let end_idx = (start_idx + keep_width).min(middle_width);
+                let trimmed: String = middle[start_idx..end_idx].iter().collect();
+                
+                // Verify the result is exactly target_width
+                let result = format!("{}{}{}", first_char, trimmed, last_char);
+                let actual_width = result.chars().count();
+                
+                if actual_width != target_width {
+                    // Adjust to exact width - trim or pad as needed
+                    let diff = target_width as i32 - actual_width as i32;
+                    if diff > 0 {
+                        // Need to add characters (shouldn't happen when trimming, but handle it)
+                        let fill_char = if template.contains("═") { '═' } else if template.contains("━") { '━' } else { '─' };
+                        let adjusted_centered = format!("{}{}", trimmed, fill_char.to_string().repeat(diff as usize));
+                        format!("{}{}{}", first_char, adjusted_centered, last_char)
+                    } else if diff < 0 {
+                        // Need to trim more
+                        let trim_amount = (-diff) as usize;
+                        let trimmed_chars: Vec<char> = trimmed.chars().collect();
+                        if trim_amount < trimmed_chars.len() {
+                            let further_trimmed: String = trimmed_chars[0..trimmed_chars.len() - trim_amount].iter().collect();
+                            format!("{}{}{}", first_char, further_trimmed, last_char)
+                        } else {
+                            format!("{}{}", first_char, last_char)
+                        }
+                    } else {
+                        result
+                    }
+                } else {
+                    result
+                }
+            } else {
+                // Need to expand - center the decorative pattern
+                // Find a fill character (prefer the first/last repeating char)
+                let fill_char = if template.contains("═") { 
+                    '═' 
+                } else if template.contains("━") { 
+                    '━' 
+                } else if template.contains("─") {
+                    '─'
+                } else {
+                    // Use the first or last char that appears multiple times
+                    let mut char_counts: HashMap<char, usize> = HashMap::new();
+                    for &ch in &middle {
+                        *char_counts.entry(ch).or_insert(0) += 1;
+                    }
+                    char_counts.iter()
+                        .max_by_key(|&(_, count)| count)
+                        .map(|(&ch, _)| ch)
+                        .unwrap_or('─')
+                };
+                
+                // Center the original middle pattern
+                // Calculate padding to ensure the final result is exactly target_width
+                let padding_needed = needed_middle_width.saturating_sub(middle_width);
+                let left_padding = padding_needed / 2;
+                let right_padding = padding_needed - left_padding;
+                
+                // Build the centered middle section
+                let left_fill = fill_char.to_string().repeat(left_padding);
+                let right_fill = fill_char.to_string().repeat(right_padding);
+                let centered = format!("{}{}{}", left_fill, middle_str, right_fill);
+                
+                // Build the result and verify it's exactly target_width
+                let result = format!("{}{}{}", first_char, centered, last_char);
+                let actual_width = result.chars().count();
+                
+                if actual_width != target_width {
+                    // Adjust to exact width needed
+                    let diff = target_width as i32 - actual_width as i32;
+                    if diff > 0 {
+                        // Need to add more characters - add to the right side of centered
+                        let adjusted_centered = format!("{}{}", centered, fill_char.to_string().repeat(diff as usize));
+                        format!("{}{}{}", first_char, adjusted_centered, last_char)
+                    } else if diff < 0 {
+                        // Need to remove characters - trim from the right side of centered
+                        let trim_amount = (-diff) as usize;
+                        let centered_chars: Vec<char> = centered.chars().collect();
+                        if trim_amount < centered_chars.len() {
+                            let trimmed: String = centered_chars[0..centered_chars.len() - trim_amount].iter().collect();
+                            format!("{}{}{}", first_char, trimmed, last_char)
+                        } else {
+                            // Fallback: just corners
+                            format!("{}{}", first_char, last_char)
+                        }
+                    } else {
+                        result
+                    }
+                } else {
+                    result
+                }
+            }
+        }
+    }
+    
     /// Create a box with a specific pattern (or random if None)
-    pub fn create_box_with_pattern(content: &str, pattern: Option<(&'static str, char, char, &'static str)>) -> (String, char, char, String) {
+    /// Returns (top_border, left_char, right_char, bottom_border, actual_box_width)
+    pub fn create_box_with_pattern(content: &str, pattern: Option<(&'static str, char, char, &'static str)>) -> (String, char, char, String, usize) {
         let (top_template, left_char, right_char, bottom_template) = pattern.unwrap_or_else(|| Self::box_pattern());
         
         // Calculate content width (strip ANSI codes if any)
         let content_width = Self::strip_ansi_codes(content).chars().count();
-        let min_width = top_template.chars().count().max(20); // Minimum box width
-        let box_width = content_width.max(min_width) + 2; // +2 for left/right chars
+        let min_width = top_template.chars().count().max(20);
+        let box_width = (content_width + 2).max(min_width);
         
-        // Create top and bottom lines by repeating the pattern or using dashes
-        let top = if top_template.contains("─") || top_template.contains("═") || top_template.contains("━") {
-            // Extract corner chars and create dynamic line
-            let first_char = top_template.chars().next().unwrap_or('─');
-            let last_char = top_template.chars().last().unwrap_or('─');
-            let fill_char = if top_template.contains("═") { '═' } else if top_template.contains("━") { '━' } else { '─' };
-            format!("{}{}{}", first_char, fill_char.to_string().repeat(box_width.saturating_sub(2)), last_char)
-        } else {
-            // For decorative boxes, use template but pad if needed
-            top_template.to_string()
-        };
+        // Scale both top and bottom to match box width
+        let top = Self::scale_box_pattern(top_template, box_width);
+        let bottom = Self::scale_box_pattern(bottom_template, box_width);
         
-        let bottom = if bottom_template.contains("─") || bottom_template.contains("═") || bottom_template.contains("━") {
-            let first_char = bottom_template.chars().next().unwrap_or('─');
-            let last_char = bottom_template.chars().last().unwrap_or('─');
-            let fill_char = if bottom_template.contains("═") { '═' } else if bottom_template.contains("━") { '━' } else { '─' };
-            format!("{}{}{}", first_char, fill_char.to_string().repeat(box_width.saturating_sub(2)), last_char)
-        } else {
-            bottom_template.to_string()
-        };
+        // Verify the scaled patterns are exactly box_width (before colorization)
+        let top_width = top.chars().count();
+        let bottom_width = bottom.chars().count();
+        
+        // Use the actual width of the scaled pattern (should match box_width, but verify)
+        let actual_box_width = top_width.max(bottom_width).max(box_width);
         
         (
             colorize_ascii_art(&top),
             left_char,
             right_char,
             colorize_ascii_art(&bottom),
+            actual_box_width,
         )
     }
-    
+}
+
+/// Helper function to render a complete box with content
+pub fn render_box(content: &str, box_pattern: (&'static str, char, char, &'static str)) {
+    let (box_top, left_char, right_char, box_bottom, box_width) = Dividers::create_box_with_pattern(content, Some(box_pattern));
+    println!("{}", box_top);
+    let content_width = Dividers::strip_ansi_codes(content).chars().count();
+    let total_padding = box_width.saturating_sub(content_width + 2);
+    let left_padding = total_padding / 2;
+    let right_padding = total_padding - left_padding;
+    println!("{}{}{}{}", 
+        left_char,
+        " ".repeat(left_padding),
+        content,
+        " ".repeat(right_padding) + &right_char.to_string());
+    println!("{}", box_bottom);
 }
 
 /// Color helpers for white palette
@@ -309,7 +440,6 @@ impl Colors {
 
 /// Spinner styling with animated colors
 pub fn spinner_template() -> String {
-    // Spinner will have its own colors from frames, message is dimmed
     format!("{{spinner}} \x1b[2m{{msg}}\x1b[0m")
 }
 

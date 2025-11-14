@@ -48,21 +48,15 @@ struct Args {
 async fn main() -> Result<()> {
     let args = Args::parse();
 
-    // Select a single box pattern for all boxes in this run
-    let box_pattern = Dividers::box_pattern();
-    
     println!();
     
-    // Show initial checking box
+    // Show initial checking box - use a random pattern
     let initial_text = format!("checking: {}", args.username);
     let colored_text = Colors::checking(&initial_text).to_string();
-    let (box_top, left_char, right_char, box_bottom) = Dividers::create_box_with_pattern(&colored_text, Some(box_pattern));
+    let checking_box_pattern = Dividers::box_pattern();
+    let (box_top, left_char, right_char, box_bottom, box_width) = Dividers::create_box_with_pattern(&colored_text, Some(checking_box_pattern));
     
     println!("{}", box_top);
-    let box_width = Dividers::strip_ansi_codes(&box_top).chars().count().max(
-        Dividers::strip_ansi_codes(&box_bottom).chars().count()
-    );
-    
     let content_width = Dividers::strip_ansi_codes(&colored_text).chars().count();
     let total_padding = box_width.saturating_sub(content_width + 2);
     let left_padding = total_padding / 2;
@@ -107,11 +101,10 @@ async fn main() -> Result<()> {
     print!("\x1b[4A\x1b[0J"); // Clear checking box (3 lines) + spinner (1 line)
     pb.finish_and_clear();
     
-    // Render domain results
+    // Render domain results - use a different random pattern
     if let Some(results) = domain_results {
         println!();
-        render_box("domains", box_pattern);
-        println!();
+        let domains_box_pattern = Dividers::box_pattern();
         
         let mut table = Table::new();
         table.load_preset(comfy_table::presets::NOTHING);
@@ -126,29 +119,43 @@ async fn main() -> Result<()> {
             table.add_row(vec![Cell::new(result.domain), status_cell]);
         }
         
-        // Render table in box
+        // Render table in box with header
         let table_str = format!("{}", table);
+        let header_text = "domains";
+        let header_width = Dividers::strip_ansi_codes(header_text).chars().count();
         let table_width = table_str.lines()
             .map(|l| Dividers::strip_ansi_codes(l).chars().count())
             .max()
-            .unwrap_or(50);
-        let (box_top, box_left, box_right, box_bottom) = Dividers::create_box_with_pattern(&" ".repeat(table_width), Some(box_pattern));
+            .unwrap_or(50)
+            .max(header_width);
+        
+        let (box_top, box_left, box_right, box_bottom, actual_box_width) = Dividers::create_box_with_pattern(&" ".repeat(table_width), Some(domains_box_pattern));
         println!("{}", box_top);
         
+        // Render header centered - use actual_box_width for consistency
+        let header_padding = actual_box_width.saturating_sub(header_width + 2);
+        let header_left_padding = header_padding / 2;
+        let header_right_padding = header_padding - header_left_padding;
+        println!("{}{}{}{}", 
+            box_left,
+            " ".repeat(header_left_padding),
+            header_text,
+            " ".repeat(header_right_padding) + &box_right.to_string());
+        
+        // Render table rows - use actual_box_width for consistency
         for line in table_str.lines() {
             let line_width = Dividers::strip_ansi_codes(line).chars().count();
-            let padding = table_width.saturating_sub(line_width);
+            let padding = actual_box_width.saturating_sub(line_width + 2);
             println!("{}{}{}{}", box_left, line, " ".repeat(padding), box_right);
         }
         
         println!("{}", box_bottom);
     }
     
-    // Render social results
+    // Render social results - use a different random pattern
     if let Some(results) = social_results {
         println!();
-        render_box("social", box_pattern);
-        println!();
+        let social_box_pattern = Dividers::box_pattern();
         
         let mut table = Table::new();
         table.load_preset(comfy_table::presets::NOTHING);
@@ -164,27 +171,43 @@ async fn main() -> Result<()> {
             table.add_row(vec![Cell::new(result.platform), status_cell]);
         }
         
-        // Render table in box
+        // Render table in box with header
         let table_str = format!("{}", table);
+        let header_text = "social";
+        let header_width = Dividers::strip_ansi_codes(header_text).chars().count();
         let table_width = table_str.lines()
             .map(|l| Dividers::strip_ansi_codes(l).chars().count())
             .max()
-            .unwrap_or(50);
-        let (box_top, box_left, box_right, box_bottom) = Dividers::create_box_with_pattern(&" ".repeat(table_width), Some(box_pattern));
+            .unwrap_or(50)
+            .max(header_width);
+        
+        let (box_top, box_left, box_right, box_bottom, actual_box_width) = Dividers::create_box_with_pattern(&" ".repeat(table_width), Some(social_box_pattern));
         println!("{}", box_top);
         
+        // Render header centered - use actual_box_width for consistency
+        let header_padding = actual_box_width.saturating_sub(header_width + 2);
+        let header_left_padding = header_padding / 2;
+        let header_right_padding = header_padding - header_left_padding;
+        println!("{}{}{}{}", 
+            box_left,
+            " ".repeat(header_left_padding),
+            header_text,
+            " ".repeat(header_right_padding) + &box_right.to_string());
+        
+        // Render table rows - use actual_box_width for consistency
         for line in table_str.lines() {
             let line_width = Dividers::strip_ansi_codes(line).chars().count();
-            let padding = table_width.saturating_sub(line_width);
+            let padding = actual_box_width.saturating_sub(line_width + 2);
             println!("{}{}{}{}", box_left, line, " ".repeat(padding), box_right);
         }
         
         println!("{}", box_bottom);
     }
 
-    // Complete section
+    // Complete section - use a different random pattern
     println!();
-    render_box("complete", box_pattern);
+    let complete_box_pattern = Dividers::box_pattern();
+    render_box("complete", complete_box_pattern);
     println!();
 
     Ok(())
