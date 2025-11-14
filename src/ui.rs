@@ -415,17 +415,56 @@ impl Dividers {
 /// Helper function to render a complete box with content
 pub fn render_box(content: &str, box_pattern: (&'static str, char, char, &'static str)) {
     let (box_top, left_char, right_char, box_bottom, box_width) = Dividers::create_box_with_pattern(content, Some(box_pattern));
-    println!("{}", box_top);
+    println!("{}", add_decorative_fill(&box_top));
+    
+    // Calculate content width (strip ANSI codes to get visual width)
     let content_width = Dividers::strip_ansi_codes(content).chars().count();
-    let total_padding = box_width.saturating_sub(content_width + 2);
+    let total_padding = box_width.saturating_sub(content_width + 2); // -2 for left and right border chars
     let left_padding = total_padding / 2;
     let right_padding = total_padding - left_padding;
-    println!("{}{}{}{}", 
+    
+    // Build content line and verify it's exactly box_width characters (visual width)
+    let content_line = format!("{}{}{}{}", 
         left_char,
         " ".repeat(left_padding),
         content,
         " ".repeat(right_padding) + &right_char.to_string());
-    println!("{}", box_bottom);
+    
+    // Verify the visual width matches box_width exactly
+    let content_line_visual_width = Dividers::strip_ansi_codes(&content_line).chars().count();
+    let final_content_line = if content_line_visual_width != box_width {
+        // Adjust to exact width - add or remove padding as needed
+        let diff = box_width as i32 - content_line_visual_width as i32;
+        if diff > 0 {
+            // Add more padding on the right
+            format!("{}{}", content_line, " ".repeat(diff as usize))
+        } else {
+            // Remove padding (shouldn't happen, but handle it)
+            let trim_amount = (-diff) as usize;
+            let line_stripped = Dividers::strip_ansi_codes(&content_line);
+            let mut chars: Vec<char> = line_stripped.chars().collect();
+            if trim_amount < chars.len() {
+                chars.truncate(chars.len() - trim_amount);
+                // Rebuild preserving ANSI codes from original
+                let content_stripped = Dividers::strip_ansi_codes(content);
+                let new_total_padding = box_width.saturating_sub(content_stripped.chars().count() + 2);
+                let new_left_padding = new_total_padding / 2;
+                let new_right_padding = new_total_padding - new_left_padding;
+                format!("{}{}{}{}", 
+                    left_char,
+                    " ".repeat(new_left_padding),
+                    content,
+                    " ".repeat(new_right_padding) + &right_char.to_string())
+            } else {
+                content_line
+            }
+        }
+    } else {
+        content_line
+    };
+    
+    println!("{}", add_decorative_fill(&final_content_line));
+    println!("{}", add_decorative_fill(&box_bottom));
 }
 
 /// Color helpers for white palette
@@ -457,4 +496,85 @@ pub fn spinner_frames() -> Vec<String> {
     }
     
     frames
+}
+
+/// Get terminal width, defaulting to 120 if unable to detect
+fn get_terminal_width() -> usize {
+    // Try COLUMNS environment variable first
+    if let Ok(cols) = std::env::var("COLUMNS") {
+        if let Ok(width) = cols.parse::<usize>() {
+            return width;
+        }
+    }
+    // Default to 120 for a nice wide terminal
+    120
+}
+
+/// Generate decorative fill pattern from all sparkle categories
+/// Returns a colored string that fills the remaining width
+/// Takes a line string (with ANSI codes) and returns the line with decorative fill appended
+pub fn add_decorative_fill(line: &str) -> String {
+    let terminal_width = get_terminal_width();
+    let line_width = Dividers::strip_ansi_codes(line).chars().count();
+    
+    if line_width >= terminal_width {
+        return line.to_string();
+    }
+    
+    let remaining_width = terminal_width - line_width;
+    if remaining_width < 2 {
+        return line.to_string();
+    }
+    
+    let mut rng = rand::rng();
+    let palette = color_palette();
+    
+    // Collect all decorative patterns from all categories
+    let mut all_patterns = Vec::new();
+    all_patterns.extend(AsciiArtCategories::cute_sparkles());
+    all_patterns.extend(AsciiArtCategories::galactic_sparkles());
+    all_patterns.extend(AsciiArtCategories::nature_mood());
+    all_patterns.extend(AsciiArtCategories::non_language_symbols());
+    
+    let mut fill = String::new();
+    let mut current_width = 0;
+    
+    // Build a pattern that fits the remaining width
+    while current_width < remaining_width {
+        // Choose a random pattern
+        let pattern = all_patterns.choose(&mut rng).unwrap_or(&" ");
+        let pattern_width = pattern.chars().count();
+        
+        // If adding this pattern would exceed, use single characters
+        if current_width + pattern_width > remaining_width {
+            let needed = remaining_width - current_width;
+            if needed > 0 {
+                // Use individual decorative characters
+                let single_chars = vec!["✦", "✧", "⋆", "☆", "★", "✩", "✪", "✫", "✬", "✭", "✮", "✯", "✰", "•", "·", "°", "○", "●", "◌", "◍"];
+                for _ in 0..needed {
+                    if let Some(&ch) = single_chars.choose(&mut rng) {
+                        let color_fn = palette.choose(&mut rng).unwrap();
+                        fill.push_str(&color_fn(ch).to_string());
+                        current_width += 1;
+                        if current_width >= remaining_width {
+                            break;
+                        }
+                    }
+                }
+            }
+            break;
+        }
+        
+        // Add the pattern with colorization
+        fill.push_str(&colorize_ascii_art(pattern));
+        current_width += pattern_width;
+        
+        // Add a small space between patterns occasionally for better flow
+        if current_width < remaining_width && rng.random_bool(0.25) {
+            fill.push(' ');
+            current_width += 1;
+        }
+    }
+    
+    format!("{}{}", line, fill)
 }

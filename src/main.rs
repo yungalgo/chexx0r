@@ -11,7 +11,8 @@ use anyhow::Result;
 use indicatif::{ProgressBar, ProgressStyle};
 use comfy_table::{Table, Cell};
 use std::time::Duration;
-use ui::{Dividers, Colors, render_box, spinner_template, spinner_frames};
+use colored::Colorize;
+use ui::{Dividers, Colors, render_box, spinner_template, spinner_frames, add_decorative_fill};
 
 #[derive(Parser, Debug)]
 #[command(name = "chexx0r")]
@@ -56,17 +57,18 @@ async fn main() -> Result<()> {
     let checking_box_pattern = Dividers::box_pattern();
     let (box_top, left_char, right_char, box_bottom, box_width) = Dividers::create_box_with_pattern(&colored_text, Some(checking_box_pattern));
     
-    println!("{}", box_top);
+    println!("{}", add_decorative_fill(&box_top));
     let content_width = Dividers::strip_ansi_codes(&colored_text).chars().count();
     let total_padding = box_width.saturating_sub(content_width + 2);
     let left_padding = total_padding / 2;
     let right_padding = total_padding - left_padding;
-    println!("{}{}{}{}", 
+    let content_line = format!("{}{}{}{}", 
         left_char,
         " ".repeat(left_padding),
         colored_text,
         " ".repeat(right_padding) + &right_char.to_string());
-    println!("{}", box_bottom);
+    println!("{}", add_decorative_fill(&content_line));
+    println!("{}", add_decorative_fill(&box_bottom));
     
     // Create a single spinner that persists across all checks
     let frames = spinner_frames();
@@ -112,17 +114,17 @@ async fn main() -> Result<()> {
         
         for result in results {
             let status_cell = match result.available {
-                Some(true) => Cell::new("available").fg(comfy_table::Color::Green),
-                Some(false) => Cell::new("taken").fg(comfy_table::Color::White),
-                None => Cell::new("unknown").fg(comfy_table::Color::Grey),
+                Some(true) => Cell::new("AVAILABLE").fg(comfy_table::Color::Green),
+                Some(false) => Cell::new("TAKEN").fg(comfy_table::Color::Red),
+                None => Cell::new("UNKNOWN").fg(comfy_table::Color::Yellow),
             };
-            table.add_row(vec![Cell::new(result.domain), status_cell]);
+            table.add_row(vec![Cell::new(result.domain).fg(comfy_table::Color::White), status_cell]);
         }
         
         // Render table in box with header
         let table_str = format!("{}", table);
-        let header_text = "domains";
-        let header_width = Dividers::strip_ansi_codes(header_text).chars().count();
+        let header_text = "domains".bright_magenta().to_string();
+        let header_width = Dividers::strip_ansi_codes(&header_text).chars().count();
         let table_width = table_str.lines()
             .map(|l| Dividers::strip_ansi_codes(l).chars().count())
             .max()
@@ -130,26 +132,28 @@ async fn main() -> Result<()> {
             .max(header_width);
         
         let (box_top, box_left, box_right, box_bottom, actual_box_width) = Dividers::create_box_with_pattern(&" ".repeat(table_width), Some(domains_box_pattern));
-        println!("{}", box_top);
+        println!("{}", add_decorative_fill(&box_top));
         
         // Render header centered - use actual_box_width for consistency
         let header_padding = actual_box_width.saturating_sub(header_width + 2);
         let header_left_padding = header_padding / 2;
         let header_right_padding = header_padding - header_left_padding;
-        println!("{}{}{}{}", 
+        let header_line = format!("{}{}{}{}", 
             box_left,
             " ".repeat(header_left_padding),
             header_text,
             " ".repeat(header_right_padding) + &box_right.to_string());
+        println!("{}", add_decorative_fill(&header_line));
         
         // Render table rows - use actual_box_width for consistency
         for line in table_str.lines() {
             let line_width = Dividers::strip_ansi_codes(line).chars().count();
             let padding = actual_box_width.saturating_sub(line_width + 2);
-            println!("{}{}{}{}", box_left, line, " ".repeat(padding), box_right);
+            let row_line = format!("{}{}{}{}", box_left, line, " ".repeat(padding), box_right);
+            println!("{}", add_decorative_fill(&row_line));
         }
         
-        println!("{}", box_bottom);
+        println!("{}", add_decorative_fill(&box_bottom));
     }
     
     // Render social results - use a different random pattern
@@ -163,18 +167,18 @@ async fn main() -> Result<()> {
         
         for result in results {
             let status_cell = match result.status {
-                social::SocialStatus::Available => Cell::new("available").fg(comfy_table::Color::Green),
-                social::SocialStatus::Taken => Cell::new("taken").fg(comfy_table::Color::White),
-                social::SocialStatus::Invalid => Cell::new("invalid").fg(comfy_table::Color::White),
-                social::SocialStatus::Unknown => Cell::new("unknown").fg(comfy_table::Color::Grey),
+                social::SocialStatus::Available => Cell::new("AVAILABLE").fg(comfy_table::Color::Green),
+                social::SocialStatus::Taken => Cell::new("TAKEN").fg(comfy_table::Color::Red),
+                social::SocialStatus::Invalid => Cell::new("INVALID").fg(comfy_table::Color::Rgb { r: 255, g: 165, b: 0 }), // Orange
+                social::SocialStatus::Unknown => Cell::new("UNKNOWN").fg(comfy_table::Color::Yellow),
             };
-            table.add_row(vec![Cell::new(result.platform), status_cell]);
+            table.add_row(vec![Cell::new(result.platform).fg(comfy_table::Color::White), status_cell]);
         }
         
         // Render table in box with header
         let table_str = format!("{}", table);
-        let header_text = "social";
-        let header_width = Dividers::strip_ansi_codes(header_text).chars().count();
+        let header_text = "social".bright_magenta().to_string();
+        let header_width = Dividers::strip_ansi_codes(&header_text).chars().count();
         let table_width = table_str.lines()
             .map(|l| Dividers::strip_ansi_codes(l).chars().count())
             .max()
@@ -182,32 +186,35 @@ async fn main() -> Result<()> {
             .max(header_width);
         
         let (box_top, box_left, box_right, box_bottom, actual_box_width) = Dividers::create_box_with_pattern(&" ".repeat(table_width), Some(social_box_pattern));
-        println!("{}", box_top);
+        println!("{}", add_decorative_fill(&box_top));
         
         // Render header centered - use actual_box_width for consistency
         let header_padding = actual_box_width.saturating_sub(header_width + 2);
         let header_left_padding = header_padding / 2;
         let header_right_padding = header_padding - header_left_padding;
-        println!("{}{}{}{}", 
+        let header_line = format!("{}{}{}{}", 
             box_left,
             " ".repeat(header_left_padding),
             header_text,
             " ".repeat(header_right_padding) + &box_right.to_string());
+        println!("{}", add_decorative_fill(&header_line));
         
         // Render table rows - use actual_box_width for consistency
         for line in table_str.lines() {
             let line_width = Dividers::strip_ansi_codes(line).chars().count();
             let padding = actual_box_width.saturating_sub(line_width + 2);
-            println!("{}{}{}{}", box_left, line, " ".repeat(padding), box_right);
+            let row_line = format!("{}{}{}{}", box_left, line, " ".repeat(padding), box_right);
+            println!("{}", add_decorative_fill(&row_line));
         }
         
-        println!("{}", box_bottom);
+        println!("{}", add_decorative_fill(&box_bottom));
     }
 
     // Complete section - use a different random pattern
     println!();
     let complete_box_pattern = Dividers::box_pattern();
-    render_box("complete", complete_box_pattern);
+    let complete_text = "complete".bright_magenta().to_string();
+    render_box(&complete_text, complete_box_pattern);
     println!();
 
     Ok(())
