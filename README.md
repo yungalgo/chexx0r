@@ -3,7 +3,7 @@
 ```
 ┎┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈୨♡୧┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┒
 ┃                                                    ┃
-┃           ✧･ﾟ: *✧･ﾟ:* chexx0r *:･ﾟ✧*:･ﾟ✧            ┃
+┃           ✧･ﾟ: *✧･ﾟ:* chexx0r *:･ﾟ✧*:･ﾟ✧             ┃
 ┃                                                    ┃
 ┃          simple cli utility for checking           ┃
 ┃          domain and username availability          ┃
@@ -17,7 +17,6 @@
 
 ```
 ┌─────────────────────────── •✧✧• ───────────────────────────┐
-
 ┃  whenever i start a new webapp, game, or project,          ┃
 ┃  i need to check domain and social media availability      ┃
 ┃  because it affects what i name it.                        ┃
@@ -30,6 +29,8 @@
 ┃                                                            ┃
 ┃  this took forever and was super tedious.                  ┃
 └─────────────────────────── •✧✧• ───────────────────────────┘
+
+```
 
 ## features
 
@@ -51,6 +52,7 @@
 ┃    • animated progress spinners                              ┃
 ┃    • sparkle-filled decorative patterns                      ┃
 ┗◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛┛
+
 ```
 
 ---
@@ -61,6 +63,7 @@
 ╔══════════════════════════════░⋆ ✪ ⋆░══════════════════════════════╗
 ║ ✧･ﾟ: *✧･ﾟ:*                  prereqs                   ✧･ﾟ: *✧･ﾟ:* ║
 ╚══════════════════════════════░⋆ ✪ ⋆░══════════════════════════════╝
+
 ```
 
 **install rust** (if not already installed):
