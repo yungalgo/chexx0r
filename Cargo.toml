@@ -7,7 +7,7 @@ description = "simple cli utility for checking domain and username availability"
 license = "MIT"
 repository = "https://github.com/yourusername/chexx0r"  # Update with your actual GitHub repo URL
 homepage = "https://github.com/yourusername/chexx0r"     # Update with your actual GitHub repo URL
-keywords = ["cli", "domain", "username", "availability", "social-media", "checker"]
+keywords = ["cli", "domain", "username", "availability", "social-media"]
 categories = ["command-line-utilities"]
 
 [[bin]]
