@@ -36,21 +36,21 @@
 
 ```
 ┏◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚◚┓
-┃  ✦ domain availability checking                              ┃
-┃    • multiple TLD presets (startup, enterprise, country)     ┃
-┃    • custom TLD support                                      ┃
-┃    • RDAP + WHOIS integration                                ┃
-┃                                                              ┃
-┃  ✦ social media platform checking                            ┃
-┃    • YouTube (@username)                                     ┃
-┃    • Instagram (username)                                    ┃
-┃    • TikTok (@username)                                      ┃
-┃                                                              ┃
-┃  ✦ beautiful terminal ui                                     ┃
-┃    • decorative kaomojis and ascii art boxes                 ┃
-┃    • color-coded status indicators                           ┃
-┃    • animated progress spinners                              ┃
-┃    • sparkle-filled decorative patterns                      ┃
+┃  ✦ domain availability checking                             ┃
+┃    • multiple TLD presets (startup, enterprise, country)    ┃
+┃    • custom TLD support                                     ┃
+┃    • RDAP + WHOIS integration                               ┃
+┃                                                             ┃
+┃  ✦ social media platform checking                           ┃
+┃    • YouTube (@username)                                    ┃
+┃    • Instagram (username)                                   ┃
+┃    • TikTok (@username)                                     ┃
+┃                                                             ┃
+┃  ✦ beautiful terminal ui                                    ┃
+┃    • decorative kaomojis and ascii art boxes                ┃
+┃    • color-coded status indicators                          ┃
+┃    • animated progress spinners                             ┃
+┃    • sparkle-filled decorative patterns                     ┃
 ┗◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛◛┛
 
 ```
