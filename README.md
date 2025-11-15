@@ -315,7 +315,7 @@ cargo update
 ╘═════════════════╛
 ```
 
-mit license - feel free to use this project for your own purposes!
+mit license - feel free to use this project for your own purposes and help save you time.
 
 ---
 
