@@ -1,10 +1,14 @@
 [package]
 name = "chexx0r"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 authors = ["yungalgo"]
-description = "CLI tool to check domain and social media username availability"
+description = "simple cli utility for checking domain and username availability"
 license = "MIT"
+repository = "https://github.com/yourusername/chexx0r"  # Update with your actual GitHub repo URL
+homepage = "https://github.com/yourusername/chexx0r"     # Update with your actual GitHub repo URL
+keywords = ["cli", "domain", "username", "availability", "social-media", "checker"]
+categories = ["command-line-utilities"]
 
 [[bin]]
 name = "chexx0r"
