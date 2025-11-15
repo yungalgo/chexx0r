@@ -1,4 +1,15 @@
 /// Username validation functions for different social media platforms
+/// 
+/// EXPRESS CONCERNS:
+/// - Validating username format against platform-specific rules
+/// - Instagram, YouTube, TikTok username validation
+/// - Pure validation logic with no side effects
+/// 
+/// DOES NOT:
+/// - Make HTTP requests
+/// - Render UI or print output
+/// - Check actual availability (only validates format)
+/// - Handle errors beyond returning Ok/Err
 
 /// Validates Instagram username format
 /// Rules:

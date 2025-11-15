@@ -1,4 +1,14 @@
-/// Domain availability checking functionality - pure logic only
+/// Domain availability checking functionality
+/// 
+/// EXPRESS CONCERNS:
+/// - Checking domain availability across multiple TLDs
+/// - Integrating with domain_check_lib
+/// - Returning structured domain results
+/// 
+/// DOES NOT:
+/// - Render UI or format output
+/// - Handle CLI arguments
+/// - Manage TLD presets (delegates to config module)
 
 use anyhow::Result;
 use domain_check_lib::DomainChecker;

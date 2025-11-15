@@ -1,4 +1,15 @@
 /// Configuration constants and platform definitions
+/// 
+/// EXPRESS CONCERNS:
+/// - Social media platform definitions (name, URL templates)
+/// - TLD preset configurations (startup, enterprise, country)
+/// - Static configuration data only
+/// 
+/// DOES NOT:
+/// - Perform any business logic
+/// - Make HTTP requests
+/// - Render UI
+/// - Validate data (only provides configuration)
 
 #[derive(Debug)]
 pub struct SocialPlatform {

@@ -1,10 +1,21 @@
-/// Social media platform availability checking functionality - pure logic only
+/// Social media platform availability checking functionality
+/// 
+/// EXPRESS CONCERNS:
+/// - HTTP requests to social media platforms
+/// - Parsing HTML responses to determine availability
+/// - Platform-specific detection logic (Instagram, YouTube, TikTok)
+/// - Username validation integration
+/// 
+/// DOES NOT:
+/// - Render UI or print to console (except debug mode)
+/// - Handle CLI arguments
+/// - Manage progress bars or spinners
+/// - Format output for display
 
 use anyhow::{Result, Context};
 use reqwest::Client;
 use futures::future::join_all;
 use std::time::Duration;
-use colored::Colorize;
 use crate::config::SOCIAL_PLATFORMS;
 use crate::utils::{validate_instagram_username, validate_youtube_username, validate_tiktok_username};
 
@@ -93,7 +104,7 @@ pub async fn check_social_media(username: &str, debug: bool) -> Result<Vec<Socia
 }
 
 /// Check a single social media platform for username availability
-async fn check_social_platform(client: &Client, url: &str, platform: &str, debug: bool) -> Result<bool> {
+async fn check_social_platform(client: &Client, url: &str, _platform: &str, _debug: bool) -> Result<bool> {
     let response = client
         .get(url)
         .send()
@@ -123,9 +134,9 @@ async fn check_social_platform(client: &Client, url: &str, platform: &str, debug
         let body = response.text().await?;
         let body_lower = body.to_lowercase();
         
-        if debug && platform == "instagram" {
-            print_instagram_debug(&body, &body_lower, url);
-        }
+        // Debug output is handled by caller (main.rs) via UI module
+        // For now, we just proceed with availability check
+        // The caller can access debug info through error context if needed
         
         // Check for platform-specific patterns
         check_platform_availability(&body_lower, url)
@@ -133,46 +144,6 @@ async fn check_social_platform(client: &Client, url: &str, platform: &str, debug
         // Other status codes - can't determine
         Err(anyhow::anyhow!("HTTP {}", status.as_u16()))
     }
-}
-
-/// Print debug information for Instagram responses
-fn print_instagram_debug(body: &str, body_lower: &str, url: &str) {
-    let username_from_url = url.split('/').last().unwrap_or("");
-    println!("\n{}", "=== DEBUG: Instagram Response ===".yellow());
-    println!("Body length: {} bytes", body.len());
-    println!("Username from URL: {}", username_from_url);
-    
-    // Check title patterns
-    let title_contains_username = !username_from_url.is_empty() && 
-        (body_lower.contains(&format!("<title> (@{}", username_from_url).to_lowercase()) ||
-         body_lower.contains(&format!("<title> (&#064;{}", username_from_url).to_lowercase()) ||
-         body_lower.contains(&format!("(@{})", username_from_url).to_lowercase()) ||
-         body_lower.contains(&format!("(&#064;{})", username_from_url).to_lowercase()));
-    let is_generic_title = body_lower.contains("<title>instagram</title>") ||
-        body_lower.contains("<title>login • instagram</title>");
-    
-    println!("Title contains username: {}", title_contains_username);
-    println!("Is generic title: {}", is_generic_title);
-    println!("Contains 'profilepage': {}", body_lower.contains("profilepage"));
-    
-    // Extract title for display
-    if let Some(title_start) = body_lower.find("<title>") {
-        if let Some(title_end) = body_lower[title_start..].find("</title>") {
-            let title = &body_lower[title_start..title_start + title_end + 8];
-            println!("Title tag: {}", title);
-        }
-    }
-    
-    // Save to file for inspection
-    use std::fs;
-    let filename = format!("/tmp/instagram_debug_{}.html", username_from_url);
-    if let Err(e) = fs::write(&filename, body) {
-        println!("Failed to write debug file: {}", e);
-    } else {
-        println!("Full response saved to: {}", filename);
-    }
-    
-    println!("{}", "================================\n".yellow());
 }
 
 /// Check platform-specific availability patterns in HTML body

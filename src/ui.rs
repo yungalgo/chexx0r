@@ -1,8 +1,23 @@
 /// UI utilities for elegant text dividers and styling with multi-color ASCII art
+/// 
+/// EXPRESS CONCERNS:
+/// - Rendering all visual output (boxes, tables, decorative elements)
+/// - ASCII art patterns and colorization
+/// - Terminal width detection and formatting
+/// - Table rendering with proper alignment
+/// - Debug output formatting
+/// 
+/// DOES NOT:
+/// - Perform domain or social media checks
+/// - Make HTTP requests
+/// - Parse CLI arguments
+/// - Validate usernames
+/// - Manage business logic
 
 use colored::*;
 use rand::prelude::*;
 use std::collections::HashMap;
+use comfy_table::{Table, Cell};
 
 /// ASCII art categories from the gist
 pub struct AsciiArtCategories;
@@ -577,4 +592,156 @@ pub fn add_decorative_fill(line: &str) -> String {
     }
     
     format!("{}{}", line, fill)
+}
+
+/// Render domain results in a formatted table with decorative box
+pub fn render_domain_results(results: &[crate::domain::DomainResult]) {
+    
+    println!();
+    let domains_box_pattern = Dividers::box_pattern();
+    
+    let mut table = Table::new();
+    table.load_preset(comfy_table::presets::NOTHING);
+    table.set_content_arrangement(comfy_table::ContentArrangement::Dynamic);
+    
+    for result in results {
+        let status_cell = match result.available {
+            Some(true) => Cell::new("AVAILABLE").fg(comfy_table::Color::Green),
+            Some(false) => Cell::new("TAKEN").fg(comfy_table::Color::Red),
+            None => Cell::new("UNKNOWN").fg(comfy_table::Color::Yellow),
+        };
+        table.add_row(vec![Cell::new(&result.domain).fg(comfy_table::Color::White), status_cell]);
+    }
+    
+    // Render table in box with header
+    let table_str = format!("{}", table);
+    let header_text = "domains".bright_cyan().to_string();
+    let header_width = Dividers::strip_ansi_codes(&header_text).chars().count();
+    let table_width = table_str.lines()
+        .map(|l| Dividers::strip_ansi_codes(l).chars().count())
+        .max()
+        .unwrap_or(50)
+        .max(header_width);
+    
+    let (box_top, box_left, box_right, box_bottom, actual_box_width) = Dividers::create_box_with_pattern(&" ".repeat(table_width), Some(domains_box_pattern));
+    println!("{}", add_decorative_fill(&box_top));
+    
+    // Render header centered - use actual_box_width for consistency
+    let header_padding = actual_box_width.saturating_sub(header_width + 2);
+    let header_left_padding = header_padding / 2;
+    let header_right_padding = header_padding - header_left_padding;
+    let header_line = format!("{}{}{}{}", 
+        box_left,
+        " ".repeat(header_left_padding),
+        header_text,
+        " ".repeat(header_right_padding) + &box_right.to_string());
+    println!("{}", add_decorative_fill(&header_line));
+    
+    // Render table rows - use actual_box_width for consistency
+    for line in table_str.lines() {
+        let line_width = Dividers::strip_ansi_codes(line).chars().count();
+        let padding = actual_box_width.saturating_sub(line_width + 2);
+        let row_line = format!("{}{}{}{}", box_left, line, " ".repeat(padding), box_right);
+        println!("{}", add_decorative_fill(&row_line));
+    }
+    
+    println!("{}", add_decorative_fill(&box_bottom));
+}
+
+/// Render social media results in a formatted table with decorative box
+pub fn render_social_results(results: &[crate::social::SocialResult]) {
+    use crate::social::SocialStatus;
+    
+    println!();
+    let social_box_pattern = Dividers::box_pattern();
+    
+    let mut table = Table::new();
+    table.load_preset(comfy_table::presets::NOTHING);
+    table.set_content_arrangement(comfy_table::ContentArrangement::Dynamic);
+    
+    for result in results {
+        let status_cell = match result.status {
+            SocialStatus::Available => Cell::new("AVAILABLE").fg(comfy_table::Color::Green),
+            SocialStatus::Taken => Cell::new("TAKEN").fg(comfy_table::Color::Red),
+            SocialStatus::Invalid => Cell::new("INVALID").fg(comfy_table::Color::Rgb { r: 255, g: 165, b: 0 }), // Orange
+            SocialStatus::Unknown => Cell::new("UNKNOWN").fg(comfy_table::Color::Yellow),
+        };
+        table.add_row(vec![Cell::new(&result.platform).fg(comfy_table::Color::White), status_cell]);
+    }
+    
+    // Render table in box with header
+    let table_str = format!("{}", table);
+    let header_text = "social".bright_magenta().to_string();
+    let header_width = Dividers::strip_ansi_codes(&header_text).chars().count();
+    let table_width = table_str.lines()
+        .map(|l| Dividers::strip_ansi_codes(l).chars().count())
+        .max()
+        .unwrap_or(50)
+        .max(header_width);
+    
+    let (box_top, box_left, box_right, box_bottom, actual_box_width) = Dividers::create_box_with_pattern(&" ".repeat(table_width), Some(social_box_pattern));
+    println!("{}", add_decorative_fill(&box_top));
+    
+    // Render header centered - use actual_box_width for consistency
+    let header_padding = actual_box_width.saturating_sub(header_width + 2);
+    let header_left_padding = header_padding / 2;
+    let header_right_padding = header_padding - header_left_padding;
+    let header_line = format!("{}{}{}{}", 
+        box_left,
+        " ".repeat(header_left_padding),
+        header_text,
+        " ".repeat(header_right_padding) + &box_right.to_string());
+    println!("{}", add_decorative_fill(&header_line));
+    
+    // Render table rows - use actual_box_width for consistency
+    for line in table_str.lines() {
+        let line_width = Dividers::strip_ansi_codes(line).chars().count();
+        let padding = actual_box_width.saturating_sub(line_width + 2);
+        let row_line = format!("{}{}{}{}", box_left, line, " ".repeat(padding), box_right);
+        println!("{}", add_decorative_fill(&row_line));
+    }
+    
+    println!("{}", add_decorative_fill(&box_bottom));
+}
+
+/// Print debug information for Instagram responses
+/// This is UI concern - formatting debug output for display
+#[allow(dead_code)]
+pub fn print_instagram_debug(body: &str, body_lower: &str, url: &str) {
+    let username_from_url = url.split('/').last().unwrap_or("");
+    println!("\n{}", "=== DEBUG: Instagram Response ===".yellow());
+    println!("Body length: {} bytes", body.len());
+    println!("Username from URL: {}", username_from_url);
+    
+    // Check title patterns
+    let title_contains_username = !username_from_url.is_empty() && 
+        (body_lower.contains(&format!("<title> (@{}", username_from_url).to_lowercase()) ||
+         body_lower.contains(&format!("<title> (&#064;{}", username_from_url).to_lowercase()) ||
+         body_lower.contains(&format!("(@{})", username_from_url).to_lowercase()) ||
+         body_lower.contains(&format!("(&#064;{})", username_from_url).to_lowercase()));
+    let is_generic_title = body_lower.contains("<title>instagram</title>") ||
+        body_lower.contains("<title>login • instagram</title>");
+    
+    println!("Title contains username: {}", title_contains_username);
+    println!("Is generic title: {}", is_generic_title);
+    println!("Contains 'profilepage': {}", body_lower.contains("profilepage"));
+    
+    // Extract title for display
+    if let Some(title_start) = body_lower.find("<title>") {
+        if let Some(title_end) = body_lower[title_start..].find("</title>") {
+            let title = &body_lower[title_start..title_start + title_end + 8];
+            println!("Title tag: {}", title);
+        }
+    }
+    
+    // Save to file for inspection
+    use std::fs;
+    let filename = format!("/tmp/instagram_debug_{}.html", username_from_url);
+    if let Err(e) = fs::write(&filename, body) {
+        println!("Failed to write debug file: {}", e);
+    } else {
+        println!("Full response saved to: {}", filename);
+    }
+    
+    println!("{}", "================================\n".yellow());
 }
