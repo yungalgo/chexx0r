@@ -9,6 +9,9 @@
 ┃          domain and username availability          ┃
 ┃                                                    ┃
 ┖┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈୨♡୧┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┚
+
+<img width="1517" height="563" alt="Screenshot 2025-11-20 at 1 22 00 PM" src="https://github.com/user-attachments/assets/13044949-a795-4fa4-84c0-31de01978550" />
+
 ```
 
 ---
