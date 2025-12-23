@@ -663,7 +663,7 @@ pub fn render_social_results(results: &[crate::social::SocialResult]) {
         let status_cell = match result.status {
             SocialStatus::Available => Cell::new("AVAILABLE").fg(comfy_table::Color::Green),
             SocialStatus::Taken => Cell::new("TAKEN").fg(comfy_table::Color::Red),
-            SocialStatus::Invalid => Cell::new("INVALID").fg(comfy_table::Color::Rgb { r: 255, g: 165, b: 0 }), // Orange
+            SocialStatus::Invalid => Cell::new("INVALID").fg(comfy_table::Color::AnsiValue(208)),
             SocialStatus::Unknown => Cell::new("UNKNOWN").fg(comfy_table::Color::Yellow),
         };
         table.add_row(vec![Cell::new(&result.platform).fg(comfy_table::Color::White), status_cell]);
